@@ -5,7 +5,7 @@ package de.flaflo.jse.interpreter.objects;
  * @author Flaflo
  *
  */
-public class ScriptVariable<T> {
+public final class ScriptVariable<T> {
 
 	private final String name;
 	private T value;
