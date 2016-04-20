@@ -23,10 +23,8 @@ public class Main {
 		
 		System.out.println(result);
 		
-		if (result == Interpreter.STRING_EMPTY) {
-			System.out.println("Running script:");
+		if (result == Interpreter.STRING_EMPTY)
 			scriptInterpreter.run();
-		}
 	}
 	
 }

@@ -94,7 +94,7 @@ public class Interpreter {
 			
 			while ((line = scriptReader.readLine()) != null) {
 
-				if (line.startsWith(COMMENTARY_PREFIX)) // Kommentare ignorieren
+				if (line.replaceAll("\t", "").startsWith(COMMENTARY_PREFIX)) // Kommentare ignorieren
 					continue;
 				
 				if (!readingBlock && readBlock != STRING_EMPTY) {
@@ -117,7 +117,7 @@ public class Interpreter {
 				}
 				
 				if (line.endsWith("()")) {
-					final String methLine = line.replace("()", "");
+					final String methLine = line.replace("\t", "").replace("()", "");
 					this.getActions().add(new RunAction((Method) this.getMethods().stream().filter(meth -> meth.getName().equals(methLine)).findFirst().get().getValue()));
 				}
 
