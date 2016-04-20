@@ -7,9 +7,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import de.flaflo.jse.interpreter.actions.IAction;
 import de.flaflo.jse.interpreter.actions.PrintAction;
+import de.flaflo.jse.interpreter.actions.RunAction;
 import de.flaflo.jse.interpreter.methods.Method;
 import de.flaflo.jse.interpreter.objects.ScriptVariable;
 
@@ -20,12 +24,16 @@ import de.flaflo.jse.interpreter.objects.ScriptVariable;
  */
 public class Interpreter {
 
+	/** Represents a constant variable for an empty string */
 	public static final String STRING_EMPTY = "";
+	
+	/** Represents a constant variable for the prefix of commentaries in code, that will be ignored */
+	private static final String COMMENTARY_PREFIX = "//";
 	
 	private final File file;
 	private final String interpretableCode;
 	
-	private final ArrayList<ScriptVariable<?>> variables;
+	private final List<ScriptVariable<?>> variables;
 	private final ArrayList<IAction> actions;
 	
 	private boolean compiled;
@@ -39,7 +47,6 @@ public class Interpreter {
 		
 		this.interpretableCode = null;
 
-		
 		this.variables = new ArrayList<ScriptVariable<?>>();
 		this.actions = new ArrayList<IAction>();
 	}
@@ -48,12 +55,12 @@ public class Interpreter {
 	 * Constructs the Interpreter
 	 * @param file The Script source
 	 */
-	public Interpreter(final String source) {
+	public Interpreter(final String source, ScriptVariable<?>[] variables) {
 		this.file = null;
 		
 		this.interpretableCode = source;
 		
-		this.variables = new ArrayList<ScriptVariable<?>>();
+		this.variables = Arrays.asList(variables);
 		this.actions = new ArrayList<IAction>();
 	}
 	
@@ -74,27 +81,61 @@ public class Interpreter {
 			scriptReader = new BufferedReader(
 					new InputStreamReader(new ByteArrayInputStream(this.interpretableCode.getBytes())));
 
-		final String scriptHeader = scriptReader.readLine();
-
 		long lineCount = 2;
 
-		if (scriptHeader.equalsIgnoreCase("#jsescript")) {
-
+		if ((this.interpretableCode != null) || scriptReader.readLine().equalsIgnoreCase("#jsescript")) {
 			String line;
+			
+			//To read blocks of coode
+			boolean readingBlock = false; //is reading a block
 
+			String blockName = STRING_EMPTY; //Name of the block
+			String readBlock = STRING_EMPTY; //Content of the block
+			
 			while ((line = scriptReader.readLine()) != null) {
 
-				if (line.startsWith("//")) // Kommentar
+				if (line.startsWith(COMMENTARY_PREFIX)) // Kommentare ignorieren
 					continue;
+				
+				if (!readingBlock && readBlock != STRING_EMPTY) {
+					final Method meth = new Method(this.getVariables().toArray(new ScriptVariable<?>[this.getVariables().size()]), readBlock.replaceAll("\t", "").substring(0, readBlock.replaceAll("\t", "").length() - 1).split("\n")); //TODO Parameters
+					final ScriptVariable<Method> varMeth = new ScriptVariable<Method>(blockName, meth);
+					
+					this.registerVariable(varMeth);
+					
+					readBlock = STRING_EMPTY;
+					blockName = STRING_EMPTY;
+				}
+				
+				if (readingBlock) {
+					if (!line.equals("}")) {
+						readBlock += line + "\n";
+						
+						continue;
+					} else
+						readingBlock = false;
+				}
+				
+				if (line.endsWith("()")) {
+					final String methLine = line.replace("()", "");
+					this.getActions().add(new RunAction((Method) this.getMethods().stream().filter(meth -> meth.getName().equals(methLine)).findFirst().get().getValue()));
+				}
 
-				if (line.toLowerCase().startsWith("var")) { // Ist eine
-															// Variable?
+				if (line.toLowerCase().startsWith("var")) { // Ist eine Variable?
 					final String[] varInfo = line.replace("var ", "").split(" = ");
 
 					final String varName = varInfo[0];
 					final String varValue = varInfo[1];
 
-					if (varValue.startsWith("\"") && varValue.endsWith("\"")) {
+					final String varValueLowerNoSpaces = varValue.toLowerCase().replace(" ", "");
+					
+					if (varValueLowerNoSpaces.startsWith("function(){")) { //Eine Methode
+						readingBlock = true;
+						
+						final String rawBody = varValue.replace("function()", "").replace("{", "").replaceFirst(" ", "").replaceFirst(" ", "");
+						readBlock += rawBody + "\n";
+						blockName = varName;						
+					} else if (varValue.startsWith("\"") && varValue.endsWith("\"")) {
 						final String varStringValue = varValue.replace("\"", "");
 
 						this.registerVariable(new ScriptVariable<String>(varName, varStringValue));
@@ -106,25 +147,23 @@ public class Interpreter {
 								final Integer varIntValue = Integer.parseInt(varValue);
 
 								this.registerVariable(new ScriptVariable<Integer>(varName, varIntValue));
-							} else if (numbersOfPoints == 1) { // Es ist ein
-																// double
+							} else if (numbersOfPoints == 1) { // Es ist ein double
 								final Double varDoubleValue = Double.parseDouble(varValue);
 
 								this.registerVariable(new ScriptVariable<Double>(varName, varDoubleValue));
 							} else
-								throw new NumberFormatException(); // Konnte
-							// Variable
-							// nicht
-							// definieren
+								throw new NumberFormatException(); // Konnte Variable nicht definieren
 						} catch (final NumberFormatException ex) {
 							result = "Could not recognize variable \"" + varName + "\" on line " + lineCount;
 
 							break;
 						}
-				} else if (line.toLowerCase().startsWith("print")) { // Voreingebaute
+				}
+				
+				
+				if (((this.file == null) && (this.interpretableCode != null)) && line.toLowerCase().startsWith("print")) { // Voreingebaute
 																		// methode
 					final String printParameter = line.replace("print ", "");
-
 					if (printParameter.startsWith("\"") && printParameter.endsWith("\""))
 						this.registerAction(new PrintAction(printParameter.replace("\"", "")));
 					else if (!(printParameter.startsWith("\"") && printParameter.endsWith("\""))
@@ -137,11 +176,19 @@ public class Interpreter {
 						break;
 					}
 
-				} else {
-
 				}
 
 				lineCount++;
+			}
+			
+			if (!readingBlock && readBlock != STRING_EMPTY) {
+				final Method meth = new Method(this.getVariables().toArray(new ScriptVariable<?>[this.getVariables().size()]), readBlock.substring(0, readBlock.length() - 1).split("\n")); //TODO Parameters
+				final ScriptVariable<Method> varMeth = new ScriptVariable<Method>(blockName, meth);
+				
+				this.registerVariable(varMeth);
+				
+				readBlock = STRING_EMPTY;
+				blockName = STRING_EMPTY;
 			}
 		} else
 			result = "Could not recognize Script (Missing Header)";
@@ -162,8 +209,22 @@ public class Interpreter {
 	public int run() {
 		long scriptStartTime = System.currentTimeMillis();
 		{
-			for (final IAction act : this.getActions())
-				act.run();
+			if (((this.file != null) && (this.interpretableCode == null))) {
+				long mainCounts = this.getMethods().stream().filter(meth -> meth.getName().equalsIgnoreCase("main")).count();
+				if (mainCounts == 1) {
+					final Object methObj = this.getMethods().stream().filter(meth -> meth.getName().equalsIgnoreCase("main")).findFirst().get().getValue();
+					
+					if (methObj instanceof Method) {
+						final Method main = (Method) this.getMethods().stream().filter(meth -> meth.getName().equalsIgnoreCase("main")).findFirst().get().getValue();
+						main.run();
+					} else
+						System.out.println("Could not find main");
+				} else if (mainCounts == 0)
+					System.out.println("Could not find main");
+				else if (mainCounts > 1)
+					System.out.println("Could not invoke main");
+			} else
+				this.getActions().forEach(act -> act.run());
 		}
 		return (int) (System.currentTimeMillis() - scriptStartTime);
 	}
@@ -185,19 +246,19 @@ public class Interpreter {
 	}
 	
 	/**
-	 * Returns all Methods stored as action
-	 * @return the List of Methods
-	 */
-	public synchronized Method[] getMethods() {
-		return (Method[]) this.actions.stream().filter(act -> act instanceof Method).toArray();
-	}
-	
-	/**
 	 * Returns all registered Variables for the script
 	 * @return the list of variables
 	 */
-	public synchronized ArrayList<ScriptVariable<?>> getVariables() {
+	public synchronized List<ScriptVariable<?>> getVariables() {
 		return this.variables;
+	}
+	
+	/**
+	 * Returns a list of Methods that are declared in the Script file
+	 * @return the list of Methods
+	 */
+	public synchronized List<ScriptVariable<?>> getMethods() {
+		return this.getVariables().stream().filter(var -> var.getValue() instanceof Method).collect(Collectors.toList());
 	}
 	
 	/**

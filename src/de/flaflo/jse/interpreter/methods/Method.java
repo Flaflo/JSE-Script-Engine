@@ -29,7 +29,7 @@ public class Method implements IAction {
 		this.parameter = parameter;
 		this.body = body;
 
-		this.interpreter = new Interpreter(Arrays.stream(body).collect(Collectors.joining("\n")));
+		this.interpreter = new Interpreter(Arrays.stream(body).collect(Collectors.joining("\n")), parameter);
 		try {
 			this.interpreter.read();
 		} catch (final IOException e) {
