@@ -123,9 +123,30 @@ public class Interpreter {
 
 				if (line.toLowerCase().startsWith("var")) { // Ist eine Variable?
 					final String[] varInfo = line.replace("var ", "").split(" = ");
+					final String[] varInfo1 = line.replace("var ", "").split("= ");
+					final String[] varInfo2 = line.replace("var ", "").split(" =");
+					final String[] varInfo3 = line.replace("var ", "").split("=");
 
-					final String varName = varInfo[0];
-					final String varValue = varInfo[1];
+					String varName = "";
+					String varValue = "";
+					
+					if (varInfo.length == 2) {
+						varName = varInfo[0];
+						varValue = varInfo[1];
+					} else if (varInfo1.length == 2) {
+						varName = varInfo1[0];
+						varValue = varInfo1[1];
+					} else if (varInfo2.length == 2) {
+						varName = varInfo2[0];
+						varValue = varInfo2[1];
+					} else if (varInfo3.length == 2) {
+						varName = varInfo3[0];
+						varValue = varInfo3[1];
+					} else {
+						result = "Could not recognize variable on line " + lineCount;
+						
+						break;
+					}
 
 					final String varValueLowerNoSpaces = varValue.toLowerCase().replace(" ", "");
 					
