@@ -97,7 +97,7 @@ public class Interpreter {
 				if (line.replaceAll("\t", "").startsWith(COMMENTARY_PREFIX)) // Kommentare ignorieren
 					continue;
 				
-				if (!readingBlock && readBlock != STRING_EMPTY) {
+				if (!readingBlock && readBlock != STRING_EMPTY) { //If the block has ended add read block of code as method
 					final Method meth = new Method(this.getVariables().toArray(new ScriptVariable<?>[this.getVariables().size()]), readBlock.replaceAll("\t", "").substring(0, readBlock.replaceAll("\t", "").length() - 1).split("\n")); //TODO Parameters
 					final ScriptVariable<Method> varMeth = new ScriptVariable<Method>(blockName, meth);
 					
@@ -108,7 +108,7 @@ public class Interpreter {
 				}
 				
 				if (readingBlock) {
-					if (!line.equals("}")) {
+					if (!line.equals("}")) { //Append line to codeblock if its not ending here
 						readBlock += line + "\n";
 						
 						continue;
@@ -116,8 +116,8 @@ public class Interpreter {
 						readingBlock = false;
 				}
 				
-				if (line.endsWith("()")) {
-					final String methLine = line.replace("\t", "").replace("()", "");
+				if (line.endsWith(")")) {
+					final String methLine = line.replace("\t", "").replace("(", "").replace(")", "");
 					this.getActions().add(new RunAction((Method) this.getMethods().stream().filter(meth -> meth.getName().equals(methLine)).findFirst().get().getValue()));
 				}
 
@@ -129,10 +129,10 @@ public class Interpreter {
 
 					final String varValueLowerNoSpaces = varValue.toLowerCase().replace(" ", "");
 					
-					if (varValueLowerNoSpaces.startsWith("function(){")) { //Eine Methode
+					if (varValueLowerNoSpaces.endsWith("){")) { //Eine Methode
 						readingBlock = true;
 						
-						final String rawBody = varValue.replace("function()", "").replace("{", "").replaceFirst(" ", "").replaceFirst(" ", "");
+						final String rawBody = varValue.replace("function", "").replace("(", "").replace(")", "").replace("{", "").replaceFirst(" ", "").replaceFirst(" ", "");
 						readBlock += rawBody + "\n";
 						blockName = varName;						
 					} else if (varValue.startsWith("\"") && varValue.endsWith("\"")) {
