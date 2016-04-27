@@ -121,7 +121,7 @@ public class Interpreter {
 					this.getActions().add(new RunAction((Method) this.getMethods().stream().filter(meth -> meth.getName().equals(methLine)).findFirst().get().getValue()));
 				}
 
-				if (line.toLowerCase().startsWith("var")) { // Ist eine Variable?
+				if (line.toLowerCase().startsWith("var")) { //Could be easier, but i am to stupid
 					final String[] varInfo = line.replace("var ", "").split(" = ");
 					final String[] varInfo1 = line.replace("var ", "").split("= ");
 					final String[] varInfo2 = line.replace("var ", "").split(" =");
@@ -150,7 +150,7 @@ public class Interpreter {
 
 					final String varValueLowerNoSpaces = varValue.toLowerCase().replace(" ", "");
 					
-					if (varValueLowerNoSpaces.endsWith("){")) { //Eine Methode
+					if (varValueLowerNoSpaces.endsWith("){")) { //Method
 						readingBlock = true;
 						
 						final String rawBody = varValue.replace("function", "").replace("(", "").replace(")", "").replace("{", "").replaceFirst(" ", "").replaceFirst(" ", "");
@@ -164,23 +164,22 @@ public class Interpreter {
 						try {
 							final int numbersOfPoints = varValue.length() - varValue.replace(".", "").length();
 
-							if (numbersOfPoints < 1) { // Es ist ein integer
+							if (numbersOfPoints < 1) { //integer
 								final Integer varIntValue = Integer.parseInt(varValue);
 
 								this.registerVariable(new ScriptVariable<Integer>(varName, varIntValue));
-							} else if (numbersOfPoints == 1) { // Es ist ein double
+							} else if (numbersOfPoints == 1) { //double
 								final Double varDoubleValue = Double.parseDouble(varValue);
 
 								this.registerVariable(new ScriptVariable<Double>(varName, varDoubleValue));
 							} else
-								throw new NumberFormatException(); // Konnte Variable nicht definieren
+								throw new NumberFormatException(); //Var not defined
 						} catch (final NumberFormatException ex) {
 							result = "Could not recognize variable \"" + varName + "\" on line " + lineCount;
 
 							break;
 						}
 				}
-				
 				
 				if (((this.file == null) && (this.interpretableCode != null)) && line.toLowerCase().startsWith("print")) { // Voreingebaute
 																		// methode
@@ -202,7 +201,7 @@ public class Interpreter {
 				lineCount++;
 			}
 			
-			if (!readingBlock && readBlock != STRING_EMPTY) {
+			if (!readingBlock && readBlock != STRING_EMPTY) { //If end of code and a block was read
 				final Method meth = new Method(this.getVariables().toArray(new ScriptVariable<?>[this.getVariables().size()]), readBlock.substring(0, readBlock.length() - 1).split("\n")); //TODO Parameters
 				final ScriptVariable<Method> varMeth = new ScriptVariable<Method>(blockName, meth);
 				
